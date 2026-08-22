@@ -3,6 +3,9 @@
 A lightweight python based recovery tool for Verus light-wallet `.pin` files. 
 Brute-force passwords and recover wallet access. The python code contains easy to copy and reuse functions for common operations such as .pin file encryption, decryption, verus_address generation, wif-key generation.
 
+<img width="1776" height="802" alt="image" src="https://github.com/user-attachments/assets/0dd5c9f5-ddd7-420d-82a0-5e5809f3cb02" />
+
+
 ## Features
 
 - Brute-force password recovery for `.pin` files
