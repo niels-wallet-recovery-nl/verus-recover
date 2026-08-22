@@ -9,7 +9,7 @@ Brute-force passwords and recover wallet access. The python code contains easy t
 ## Features
 
 - Brute-force password recovery for `.pin` files
-- Supports Legacy and Modern wallet formats (desktop/mobile)
+- Supports Legacy and Modern wallet formats (desktop:legacy,modern and imported mobile wif-key)
 - Detection based on mnemonic pattern in decrypted content
 - Automatic address detection from `.pin` filename
 - Target address verification (single address or file)
