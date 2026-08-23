@@ -402,7 +402,51 @@ def private_key_to_wif(private_key_bytes: bytes, compressed: bool = False) -> st
     
     return base58.b58encode(final_key).decode()
 
-
+def validate_wif(wif_string: str) -> tuple[bytes | None, bool | None]:
+    '''
+    Validate WIF key and return (private_key_bytes, is_compressed)
+    Returns (None, None) if not a valid WIF key
+    '''
+    import hashlib
+    import base58
+    
+    ## Basic length check
+    if len(wif_string) < 50 or len(wif_string) > 53:
+        return None, None
+    
+    try:
+        decoded = base58.b58decode(wif_string)
+    except Exception:
+        return None, None
+    
+    ## Compressed WIF: 38 bytes = prefix(1) + key(32) + 0x01(1) + checksum(4)
+    if len(decoded) == 38:
+        if decoded[0] != 0x80:
+            return None, None
+        if decoded[33] != 0x01:
+            return None, None
+        priv_key = decoded[1:33]
+        payload = decoded[:34]
+        checksum = decoded[34:]
+        is_compressed = True
+    
+    ## Uncompressed WIF: 37 bytes = prefix(1) + key(32) + checksum(4)
+    elif len(decoded) == 37:
+        if decoded[0] != 0x80:
+            return None, None
+        priv_key = decoded[1:33]
+        payload = decoded[:33]
+        checksum = decoded[33:]
+        is_compressed = False
+    else:
+        return None, None
+    
+    ## Verify checksum (double SHA256)
+    expected = hashlib.sha256(hashlib.sha256(payload).digest()).digest()[:4]
+    if checksum != expected:
+        return None, None
+    
+    return priv_key, is_compressed
 
 
 ###############################################################################
@@ -681,14 +725,13 @@ if __name__ == "__main__":
                 continue
             
             try:
-                
-                
                 ## Decrypt with selected mode (single path, no redundancy)
                 decrypted_modern = None
                 decrypted_legacy = None
                 is_modern = False
                 is_legacy = False
                 method_found = None
+                found_match = None
                 
                 ## Initialize result variables upfront to avoid false positives
                 seed_phrase = None
@@ -715,7 +758,8 @@ if __name__ == "__main__":
                     except:
                         if args.mode == "legacy":
                             continue
-                ## DETECTION METHOD 1: detect mnemonic like patter in decrypted
+                              
+                ## DETECTION METHOD 1A: detect mnemonic like patter in decrypted
                 if is_modern:               
                     try:
                         seed_phrase = decrypted_modern.decode('utf-8').strip()
@@ -728,68 +772,108 @@ if __name__ == "__main__":
                             ## Only works for modern wallets since they contain mnemonic string
                             ## Matches pattern of a mnemonic
                             if space_count > 10 and space_count < 24:
-                                print(seed_phrase)
-                                ## Since a mnemonic is detected, no legacy seed_bytes
-                                ## seed_bytes will be derived from mnemonic
-                                seed_bytes = electrum_style_seed(seed_phrase) 
+                                ## Since a mnemonic is detected, derive from mnemonic
+                                seed_bytes = electrum_style_seed(seed_phrase)
+                                priv_key_modern=seed_bytes[:32]
+                                target_addr,target_wif = derive_verus_address(priv_key_modern, compressed=True, return_wif=True)
+                                found_match =True
                                 print(f"{'#'*40}")
                                 print(f"PASSWORD {pwd}| POTENTIAL MNEMONIC DETECTED!")
                                 print(f"Seed phrase: {seed_phrase}")
+
+                        ## DETECTION METHOD 1B: Detect WIF key in modern wallet
+                        ## Detect if compression, derive target_address accodingly
+                        try:
+                            ## If not a WIF key, None, None will be returned
+                            priv_key,compressed = validate_wif(seed_phrase)
+                            if compressed == True:
+                                priv_key_modern  = priv_key
+                            if compressed == False:
+                                priv_key_legacy  = priv_key                        
+                            ## Only if wif_key was detected, return target is hit
+                            if priv_key!=None:
+                                target_address,target_wif = derive_verus_address(priv_key_modern, compressed=compressed, return_wif=True)
+                                found_match =True    
+                        ## If WIF does not work out
+                        except: 
+                            pass         
+                    ## If not mnemonic or WIF, just continue with regular checks
                     except:
-                        pass               
-                
+                        pass
+                        
+                            
                 ## DETECTION METHOD 2: btc address in .pin file name
                 ## Newer wallet .pin files contain btc legacy address as file name    
                 if check_btc_address and is_modern:
                     try:
                         seed_bytes_modern = electrum_style_seed(seed_phrase)
-                        btc_addr = derive_btc_address(seed_bytes_modern[0:32])
+                        priv_key = seed_bytes_modern[0:32]
+                        btc_addr = derive_btc_address(priv_key)
+                        ## For now assume that wallets with bitcoin address in name are modern, is that correct?
+                        target_address,target_wif = derive_verus_address(priv_key_modern, compressed=True, return_wif=True)
+                        found_match =True
                         if btc_addr in targets:
+                            target_wif = private_key_to_wif(priv_key_legacy,compressed=True)
                             print(f"PASSWORD FOUND BASED ON BTC ADDRESS IN FILE NAME")
                             print(f"BTC legacy: '{btc_addr}'.pin")
                             print(f"Password:  {pwd}")
                     except:
                         pass
                 if check_btc_address and is_legacy:
-
                     try:
                         seed_bytes_modern = electrum_style_seed(seed_phrase)
-                        btc_addr = derive_btc_address(seed_bytes_modern[0:32])
+                        priv_key = seed_bytes_modern[0:32]
+                        
+                        btc_addr = derive_btc_address(priv_key)
                         if btc_addr in targets:
                             print(f"PASSWORD FOUND BASED ON BTC ADDRESS IN FILE NAME")
                             print(f"BTC legacy: '{btc_addr}'.pin")
                             print(f"Password:  {pwd}")
                     except:
-                        pass
-                            
-                    
-                ## DETECTION METHOD 3: Verus address derived matches target address
-                ## Derive from modern decrypted (seed_phrase string -> seed)
-                if decrypted_modern != None and seed_phrase != None:
-                    seed_bytes_modern = electrum_style_seed(seed_phrase)
-                    priv_key_modern = seed_bytes_modern[:32]
-                    modern_addr_comp, modern_wif_comp = derive_verus_address(priv_key_modern, compressed=True, return_wif=True)
-                    modern_addr_uncomp, modern_wif_uncomp = derive_verus_address(priv_key_modern, compressed=False, return_wif=True)
-                if is_legacy:
+                        pass 
+                ## LEGACY: ADDRESS CHECK in TARGETS
+                if is_legacy and len(decrypted_legacy) >=32:
                     seed_bytes_legacy = decrypted_legacy
                     priv_key_legacy = seed_bytes_legacy[:32]
-                    legacy_addr_comp, legacy_wif_comp = derive_verus_address(priv_key_legacy, compressed=True, return_wif=True)
-                    legacy_addr_uncomp, legacy_wif_uncomp = derive_verus_address(priv_key_legacy, compressed=False, return_wif=True)
-                    
-                ## Check against target addresses (check BOTH, not just one)
-                found_match = False
-                if legacy_addr_comp in targets or legacy_addr_uncomp in targets:
-                    found_match = True
-                    target_addr = legacy_addr_comp if legacy_addr_comp in targets else legacy_addr_uncomp
-                    target_wif = legacy_wif_comp if legacy_addr_comp in targets else legacy_wif_uncomp
-                    method_found = "LEGACY"
-                 
-                elif modern_addr_comp in targets or modern_addr_uncomp in targets:
-                    found_match = True
-                    target_addr = modern_addr_comp if modern_addr_comp in targets else modern_addr_uncomp
-                    target_wif = modern_wif_comp if modern_addr_comp in targets else modern_wif_uncomp
-                    method_found = "MODERN"
-                 
+                    ## First check uncompressed keys since most legacy are uncompressed
+                    legacy_addr_uncomp, legacy_wif_uncomp = derive_verus_address(priv_key_legacy, compressed=False, return_wif=False)
+                    ## Check if address in targets
+                    if legacy_addr_uncomp in targets:
+                        target_addr = legacy_addr_uncomp 
+                        target_wif = private_key_to_wif(priv_key_legacy,compressed=False)
+                        found_match =True
+                    ## If uncompressed key not in target, check for uncompressed
+                    ## This accounts for rare case of imported mobile wif key in legacy wallet
+                    else:
+                        legacy_addr_comp, legacy_wif_comp = derive_verus_address(priv_key_legacy, compressed=True, return_wif=False)
+                        if legacy_addr_comp in targets:
+                            target_addr = legacy_addr_comp 
+                            target_wif = private_key_to_wif(priv_key_legacy,compressed=True)
+                            found_match =True
+                            
+
+                ## MODERN: ADDRESS CHECK in TARGETS
+                if is_modern:
+                    seed_phrase = decrypted_modern.decode('utf-8').strip()
+                    seed_bytes_modern = electrum_style_seed(seed_phrase)
+                    priv_key_modern = seed_bytes_modern[:32]
+                    ## First check compressed keys since modern wallet uses compressed keys
+                    modern_addr_comp, modern_wif_comp = derive_verus_address(priv_key_modern, compressed=True, return_wif=False)
+                    if modern_addr_comp in targets:
+                        target_addr = modern_addr_comp
+                        target_wif = private_key_to_wif(priv_key_modern,compressed=True)
+                        found_match =True
+                    ## If compressed key not in target, check for uncompressed
+                    ## This accounts for rare case of imported legacy wif in modern wallet
+                    else:
+                        modern_addr_uncomp, modern_wif_uncomp = derive_verus_address(priv_key_modern, compressed=False, return_wif=False)
+                        if modern_addr_uncomp in targets:
+                            target_addr = modern_addr_uncomp
+                            target_wif = private_key_to_wif(priv_key_modern,compressed=False)
+                            found_match =True
+                
+                
+                ## If found, return results to use            
                 if found_match:
                     print(f"\n{'#'*40}")
                     print(f"PASSWORD FOUND!")
@@ -816,8 +900,5 @@ if __name__ == "__main__":
                 if args.debug:
                     print(f"[DEBUG] '{pwd}' failed: {e}")
                 continue    
-        if found:
-            break  ## Exit after first successful password across all wallets
-    
     if not found:
         sys.exit(1)
