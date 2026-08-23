@@ -810,13 +810,16 @@ if __name__ == "__main__":
                         priv_key = seed_bytes_modern[0:32]
                         btc_addr = derive_btc_address(priv_key)
                         ## For now assume that wallets with bitcoin address in name are modern, is that correct?
-                        target_address,target_wif = derive_verus_address(priv_key_modern, compressed=True, return_wif=True)
+                        target_address_comp,target_wif_comp = derive_verus_address(priv_key_modern, compressed=True, return_wif=True)
+                        target_address_uncomp,target_wif_uncomp = derive_verus_address(priv_key_modern, compressed=False, return_wif=True)
                         found_match =True
                         if btc_addr in targets:
                             target_wif = private_key_to_wif(priv_key_legacy,compressed=True)
                             print(f"PASSWORD FOUND BASED ON BTC ADDRESS IN FILE NAME")
                             print(f"BTC legacy: '{btc_addr}'.pin")
                             print(f"Password:  {pwd}")
+                            print(f"Potential compressed addres   |WIF pair: {target_address_comp} | {target_wif_comp}")
+                            print(f"Potential un-compressed addres|WIF: {target_address_uncomp} | {target_wif_uncomp}")
                     except:
                         pass
                 if check_btc_address and is_legacy:
