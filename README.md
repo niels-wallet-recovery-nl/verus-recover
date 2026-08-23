@@ -11,10 +11,11 @@ Brute-force passwords and recover wallet access. The python code contains easy t
 - Brute-force password recovery for `.pin` files
 - Supports Legacy and Modern wallet formats (desktop:legacy,modern and imported mobile wif-key)
 - Detection based on mnemonic pattern in decrypted content
+- Detection of UTF-8 bytes of a imported WIF key in file
 - Automatic address detection from `.pin` filename
 - Target address verification (single address or file)
 - Round-trip encryption test mode
-- Bitcoin legacy address extraction from filenames
+- Bitcoin legacy address extraction from filename, correct decryption detection based on {legacy_btc}.pin name
 - Optional 1: Show wallet WIF as text based QR code for easy scanning
 - Optional 2: Scan wallet, show balance
 
@@ -60,6 +61,9 @@ Example:
     python verus-recover.py -w 17152DKcnwezgnRjvmkERPkuXA8FnWicRs.pin
 
 ## Performance benchmark
+-m modern: 33/passwords/second/core
+-m legacy: 17/passwords/second/core
+-m   both: 11/passwords/second/ core
 Approximately 16 passwords/second/core.
 Decryption is the bottleneck (300,000 PBKDF2 rounds).
 I might make some speed improvments in the future by adding optional pre-compiled rust binaries for PBKDF2 
