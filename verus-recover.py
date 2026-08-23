@@ -595,38 +595,38 @@ try:
         qr.make(fit=True)
         qr.print_ascii(invert=invert)   
         
-        def get_address_balance(address):
-            """
-            #curl --silent --data-binary '{"jsonrpc": "1.0", "id":"curltest", "method": "getaddressbalance", "params": [{"addresses": ["Verus Coin Foundation@"],"friendlynames": true}] }' -H 'content-type: text/plain;' https://api.verus.services | jq .
-            Fetch the balance of a Verus address using the public RPC endpoint.
+    def get_address_balance(address):
+        """
+        #curl --silent --data-binary '{"jsonrpc": "1.0", "id":"curltest", "method": "getaddressbalance", "params": [{"addresses": ["Verus Coin Foundation@"],"friendlynames": true}] }' -H 'content-type: text/plain;' https://api.verus.services | jq .
+        Fetch the balance of a Verus address using the public RPC endpoint.
 
-            Args:
-                address (str): The Verus address or VerusID (e.g., "Verus Coin Foundation@").
+        Args:
+            address (str): The Verus address or VerusID (e.g., "Verus Coin Foundation@").
 
-            Returns:
-                dict: The JSON response from the RPC endpoint.
-            """
-            url = "https://api.verus.services"
-            headers = {'content-type': 'application/json'}
-            payload = {
-                "jsonrpc": "1.0",
-                "id": "curltest",
-                "method": "getaddressbalance",
-                "params": [{"addresses": [address], "friendlynames": True}]
-            }
+        Returns:
+            dict: The JSON response from the RPC endpoint.
+        """
+        url = "https://api.verus.services"
+        headers = {'content-type': 'application/json'}
+        payload = {
+            "jsonrpc": "1.0",
+            "id": "curltest",
+            "method": "getaddressbalance",
+            "params": [{"addresses": [address], "friendlynames": True}]
+        }
 
-            try:
-                response = requests.post(
-                    url,
-                    data=json.dumps(payload),
-                    headers=headers,
-                )
-                response.raise_for_status()  # Raise an error for bad status codes
-                return response.json()
-            except requests.exceptions.RequestException as e:
-                print(f"Error making RPC call: {e}")
-                return {}
-            #curl --silent --data-binary '{"jsonrpc": "1.0", "id":"curltest", "method": "getaddressbalance", "params": [{"addresses": ["Verus Coin Foundation@"],"friendlynames": true}] }' -H 'content-type: text/plain;' https://api.verus.services | jq .
+        try:
+            response = requests.post(
+                url,
+                data=json.dumps(payload),
+                headers=headers,
+            )
+            response.raise_for_status()  # Raise an error for bad status codes
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            print(f"Error making RPC call: {e}")
+            return {}
+        #curl --silent --data-binary '{"jsonrpc": "1.0", "id":"curltest", "method": "getaddressbalance", "params": [{"addresses": ["Verus Coin Foundation@"],"friendlynames": true}] }' -H 'content-type: text/plain;' https://api.verus.services | jq .
 except:
     pass
         
