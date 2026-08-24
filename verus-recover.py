@@ -818,8 +818,8 @@ if __name__ == "__main__":
                             print(f"PASSWORD FOUND BASED ON BTC ADDRESS IN FILE NAME")
                             print(f"BTC legacy: '{btc_addr}'.pin")
                             print(f"Password:  {pwd}")
-                            print(f"Potential compressed addres   |WIF pair: {target_address_comp} | {target_wif_comp}")
-                            print(f"Potential un-compressed addres|WIF: {target_address_uncomp} | {target_wif_uncomp}")
+                            print(f"Compresssed key-address pair    | {target_address_comp} | {target_wif_comp}")
+                            print(f"Un-compresssed key-address pair | {target_address_uncomp} | {target_wif_uncomp}")
                     except:
                         pass
                 if check_btc_address and is_legacy:
